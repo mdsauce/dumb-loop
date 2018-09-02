@@ -9,15 +9,18 @@ import queue
 from selenium.common.exceptions import WebDriverException
 from sauceclient import SauceClient
 import random
+import logging
+import datetime
 import time
-import os
-THREADS = 10
-TESTS = 14
-
+import os, sys
+THREADLIMIT = 60
+TESTS = 800
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
-
+now = datetime.datetime.now()
+logfileName = now.strftime('job-runner_%H-%M-%d-%m-%Y.log')
+logging.basicConfig(filename=logfileName,level=logging.INFO)
 
 def capsBuilder():
     testName = "Simple Bulk Test"
@@ -33,41 +36,42 @@ def capsBuilder():
     return caps
 
 def randomTest(caps):
-    driver = webdriver.Remote(command_executor="https://%s:%s@ondemand.saucelabs.com/wd/hub" % (username, access_key), desired_capabilities=caps)
+    try:
+        driver = webdriver.Remote(command_executor="https://{}:{}@ondemand.saucelabs.com/wd/hub".format(username, access_key), desired_capabilities=caps)
+    except urllib.error.URLError as u:
+        logging.exception("Problem creating remote webdriver session. Potential DNS rate limiting.\n{}".format(u))
+        exit
+    except socket.gaierror as s:
+        logging.info("Problem creating remote webdriver session at the socket level. Potential DNS rate limiting.\n{}".format(u))
+        exit
     try:
         driver.get("https://saucelabs.com")
         wait = WebDriverWait(driver, 45)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "site-container")))
         if driver.title == "Cross Browser Testing, Selenium Testing, and Mobile Testing | Sauce Labs":
             sauce_client.jobs.update_job(driver.session_id, passed=True)
-            print(f"Session {driver.session_id} passed")
+            logging.info(f"Session {driver.session_id} passed")
+            driver.quit()
             return 0
         else:
             sauce_client.jobs.update_job(driver.session_id, passed=False)
-            print(f"Session {driver.session_id} failed")
+            logging.info("Session {} failed".format(driver.session_id))
+            driver.quit()
             return driver.session_id
     except WebDriverException as m:
-        print(f"Session {driver.session_id} failed for a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
+        logging.exception(f"Session {driver.session_id} failed for a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
-        session = driver.session_id
-        return session
-    except (urllib.error.URLError, urllib.error.HTTPError) as u:
-        print(f"Session {driver.session_id} failed due to a Socket Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{u}")
+        return driver.session_id
+    except (socket.timeout, socket.gaierror, urllib.error.URLError, urllib.error.HTTPError) as s:
+        logging.exception(f"Session {driver.session_id} failed due to a Socket or URL Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{s}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
-        session = driver.session_id
-        return session
-    except (socket.timeout, socket.gaierror) as s:
-        print(f"Session {driver.session_id} failed due to a Socket Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{s}")
-        sauce_client.jobs.update_job(driver.session_id, passed=False)
-        session = driver.session_id
-        return session
+        return driver.session_id
     except TimeoutError as t:
-        print(f"Session {driver.session_id} failed due to a Timeout Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{t}")
+        logging.exception(f"Session {driver.session_id} failed due to a Timeout Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{t}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
         session = driver.session_id
-        return session
-    finally:
         driver.quit()
+        return session
 
 lock = threading.Lock()
 
@@ -76,15 +80,19 @@ def worker(q):
     global failedJobs
     while True:
         if q.empty():
-            print(f"Thread-{threading.current_thread().name} can't find any more work because the queue is empty.")
+            logging.info(f"Thread-{threading.current_thread().name} can't find any more work because the queue is empty.")
+        # To get around the upstream DNS rate limit.
+        # 12 seconds is OK for ~ 1500 jobs.  Only 1 error
+        time.sleep(12)
         status = randomTest(q.get())
         if status != 0:
             with lock:
-                print(f"Thread-{threading.current_thread().name} has a failed job.  {status}")
+                logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
                 failedJobs+=1
         with lock:
             jobNumber+=1
-            print(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
+            logging.info(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
+            print(f"Job {jobNumber} finished")
         q.task_done()
 
 capsToTest = queue.Queue()
@@ -94,9 +102,12 @@ for i in range(TESTS):
 jobNumber = 0
 failedJobs = 0
 
-for i in range(THREADS):
+for i in range(THREADLIMIT):
     w = threading.Thread(name=i, target=worker, args=(capsToTest,))
     w.setDaemon(True)
     w.start()
+
 capsToTest.join()
-print(f"Total Jobs Run: {TESTS}\nFailed Job Count: {failedJobs}")
+logging.info(f"Total Jobs Run: {TESTS}\nFailed Job Count: {failedJobs}")
+print(f"Failed Jobs: {failedJobs}")
+sys.exit(0)
