@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-import urllib
+import urllib, urllib.error
 import threading
 import socket
 import queue
@@ -14,12 +14,12 @@ import datetime
 import time
 import os, sys
 THREADLIMIT = 50
-TESTS = 150
+TESTS = 1500
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
 now = datetime.datetime.now()
-logfileName = now.strftime('job-runner_%H-%M-%d-%m-%Y.log')
+logfileName = now.strftime('job-runner_%d-%m-%Y_%H-%M.log')
 logging.basicConfig(filename=logfileName,level=logging.INFO)
 
 def capsBuilder():
@@ -30,13 +30,14 @@ def capsBuilder():
         'platform': random.choice(platforms),
         'browserName': random.choice(browsers),
         'version': "latest",
+        'seleniumVersion': "3.8.1",
         'name': testName
     }
     return caps
 
 def randomTest(caps):
     try:
-        driver = webdriver.Remote(command_executor="https://{}:{}@ondemand.saucelabs.com/wd/hub".format(username, access_key), desired_capabilities=caps)
+        driver = webdriver.Remote(command_executor="http://{}:{}@ondemand.saucelabs.com/wd/hub".format(username, access_key), desired_capabilities=caps)
     except urllib.error.URLError as u:
         logging.exception("Problem creating remote webdriver session. Potential DNS rate limiting.\n{}".format(u))
         return 1
@@ -59,7 +60,7 @@ def randomTest(caps):
             driver.quit()
             return session
     except WebDriverException as m:
-        logging.exception(f"Session {driver.session_id} failed for a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
+        logging.exception(f"Session {driver.session_id} failed due to a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
         return driver.session_id
     except (socket.timeout, socket.gaierror, urllib.error.URLError, urllib.error.HTTPError) as s:
@@ -90,8 +91,11 @@ def worker(q):
         status = randomTest(test)
         with lock:
             if status != 0:
-                logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
                 failedJobs+=1
+                print(f"Thread-{threading.current_thread().name} says: I might be blocking the .join()")
+                logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
+                if status != 1:
+                    logging.info(f"Thread-{threading.current_thread().name} had failed session: {status}.")
         with lock:
             jobNumber+=1
             logging.info(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
@@ -115,4 +119,3 @@ for i in range(THREADLIMIT):
 capsToTest.join()
 logging.info(f"Total Jobs Run: {TESTS}\nFailed Job Count: {failedJobs}")
 print(f"Failed Jobs: {failedJobs}")
-sys.exit(0)
