@@ -14,7 +14,7 @@ import datetime
 import time
 import os, sys
 THREADLIMIT = 50
-TESTS = 1000
+TESTS = 150
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
@@ -39,10 +39,10 @@ def randomTest(caps):
         driver = webdriver.Remote(command_executor="https://{}:{}@ondemand.saucelabs.com/wd/hub".format(username, access_key), desired_capabilities=caps)
     except urllib.error.URLError as u:
         logging.exception("Problem creating remote webdriver session. Potential DNS rate limiting.\n{}".format(u))
-        exit
+        return 1
     except socket.gaierror as s:
         logging.info("Problem creating remote webdriver session at the socket level. Potential DNS rate limiting.\n{}".format(u))
-        exit
+        return 1
     try:
         driver.get("https://saucelabs.com")
         wait = WebDriverWait(driver, 45)
@@ -55,8 +55,9 @@ def randomTest(caps):
         else:
             sauce_client.jobs.update_job(driver.session_id, passed=False)
             logging.info("Session {} failed".format(driver.session_id))
+            session = driver.session_id
             driver.quit()
-            return driver.session_id
+            return session
     except WebDriverException as m:
         logging.exception(f"Session {driver.session_id} failed for a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
@@ -64,7 +65,9 @@ def randomTest(caps):
     except (socket.timeout, socket.gaierror, urllib.error.URLError, urllib.error.HTTPError) as s:
         logging.exception(f"Session {driver.session_id} failed due to a Socket or URL Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{s}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
-        return driver.session_id
+        session = driver.session_id
+        driver.quit()
+        return session
     except TimeoutError as t:
         logging.exception(f"Session {driver.session_id} failed due to a Timeout Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{t}")
         sauce_client.jobs.update_job(driver.session_id, passed=False)
@@ -82,18 +85,18 @@ def worker(q):
             logging.info(f"Thread-{threading.current_thread().name} can't find any more work because the queue is empty.")
         # To get around the upstream DNS rate limit.
         # 12 seconds is OK for ~ 1500 jobs.  Only 1 error
-        time.sleep(random.randrange(3,14))
+        time.sleep(random.randrange(5,14))
         test = q.get()
         status = randomTest(test)
-        q.task_done()
-        if status != 0:
-            with lock:
+        with lock:
+            if status != 0:
                 logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
                 failedJobs+=1
         with lock:
             jobNumber+=1
             logging.info(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
             print(f"Job {jobNumber} finished")
+            q.task_done()
 
 capsToTest = queue.Queue()
 for i in range(TESTS):
@@ -101,6 +104,8 @@ for i in range(TESTS):
 
 jobNumber = 0
 failedJobs = 0
+
+print(f"Logged to {logfileName}")
 
 for i in range(THREADLIMIT):
     w = threading.Thread(name=i, target=worker, args=(capsToTest,))
