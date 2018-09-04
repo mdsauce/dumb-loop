@@ -10,5 +10,8 @@ Edit the two values at the top of the file:
 
 THREADLIMIT is the number of threads (concurrent number of tests).  TESTS is the total number of tests you'd like to start.
 
-### Utilities
+### Logging
+Each time a program is started it will generate a log with the filename of `job-runner_{the day-the month-the year_the hour-the minute}.log`.  Exceptions will be recorded as ERRORS while everything else will be prefixed as INFO level logging.
+
+### Extra
 To see the current number of tcp connections used by the threads  use `lsof -i | grep "python" | wc -l`.  This will grep for the python threads on the system and then count the lines.
