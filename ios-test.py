@@ -13,8 +13,8 @@ import logging
 import datetime
 import time
 import os, sys
-THREADLIMIT = 100
-TESTS = 1500
+THREADLIMIT = 50
+TESTS = 200
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
