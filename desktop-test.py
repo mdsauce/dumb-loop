@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 import urllib, urllib.error
 import threading
 import socket
@@ -13,8 +14,8 @@ import logging
 import datetime
 import time
 import os, sys
-THREADLIMIT = 50
-TESTS = 1500
+THREADLIMIT = 5
+TESTS = 5
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
@@ -42,40 +43,85 @@ def randomTest(caps):
         logging.exception("Problem creating remote webdriver session. Potential DNS rate limiting.\n{}".format(u))
         return 1
     except socket.gaierror as s:
-        logging.info("Problem creating remote webdriver session at the socket level. Potential DNS rate limiting.\n{}".format(u))
+        logging.info("Problem creating remote webdriver session at the socket level. Potential DNS rate limiting.\n{}".format(s))
         return 1
-    try:
+    try: 
         driver.get("https://saucelabs.com")
         wait = WebDriverWait(driver, 45)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "site-container")))
-        if driver.title == "Cross Browser Testing, Selenium Testing, and Mobile Testing | Sauce Labs":
-            sauce_client.jobs.update_job(driver.session_id, passed=True)
-            logging.info(f"Session {driver.session_id} passed")
-            driver.quit()
-            return 0
-        else:
+        if driver.title != "Cross Browser Testing, Selenium Testing, and Mobile Testing | Sauce Labs":
             sauce_client.jobs.update_job(driver.session_id, passed=False)
             logging.info("Session {} failed".format(driver.session_id))
             session = driver.session_id
             driver.quit()
             return session
-    except WebDriverException as m:
-        logging.exception(f"Session {driver.session_id} failed due to a Web Driver Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{m}")
-        sauce_client.jobs.update_job(driver.session_id, passed=False)
-        return driver.session_id
-    except (socket.timeout, socket.gaierror, urllib.error.URLError, urllib.error.HTTPError) as s:
-        logging.exception(f"Session {driver.session_id} failed due to a Socket or URL Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{s}")
-        sauce_client.jobs.update_job(driver.session_id, passed=False)
-        session = driver.session_id
-        driver.quit()
-        return session
-    except TimeoutError as t:
-        logging.exception(f"Session {driver.session_id} failed due to a Timeout Exception! https://saucelabs.com/beta/tests/{driver.session_id}\n{t}")
-        sauce_client.jobs.update_job(driver.session_id, passed=False)
-        session = driver.session_id
-        driver.quit()
-        return session
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
+        
+        time.sleep(30)
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        time.sleep(30)
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        time.sleep(30)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        time.sleep(30)
+        selenium_url.click()
+        time.sleep(30)
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
+        time.sleep(30)
 
+        time.sleep(30)
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        time.sleep(30)
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        time.sleep(30)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        time.sleep(25)
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
+
+
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
+
+
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
+
+        # hooray! the test passed
+        sauce_client.jobs.update_job(driver.session_id, passed=True)  
+        logging.info(f"Session {driver.session_id} passed")
+        driver.quit()
+
+    except:
+        sauce_client.jobs.update_job(driver.session_id, passed=False)  
+        logging.info(f"Session {driver.session_id} failed")
+        driver.quit()
+        return session
 lock = threading.Lock()
 
 def worker(q):
@@ -88,14 +134,18 @@ def worker(q):
         # 12 seconds is OK for ~ 1500 jobs.  Only 1 error
         time.sleep(random.randrange(5,14))
         test = q.get()
-        status = randomTest(test)
-        with lock:
-            if status != 0:
-                failedJobs+=1
-                print(f"Thread-{threading.current_thread().name} says: I might be blocking the .join()")
-                logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
-                if status != 1:
-                    logging.info(f"Thread-{threading.current_thread().name} had failed session: {status}.")
+        try:
+            status = randomTest(test)
+        except:
+            logging.exception(f"Caught Exception: {sys.exc_info()}")
+            with lock:
+                if status != 0:
+                    failedJobs+=1
+                    print(f"Thread-{threading.current_thread().name} says: I might be blocking the .join()")
+                    q.task_done()
+                    logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
+                    if status != 1:
+                        logging.info(f"Thread-{threading.current_thread().name} had failed session: {status}.")
         with lock:
             jobNumber+=1
             logging.info(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
