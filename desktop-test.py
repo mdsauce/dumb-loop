@@ -85,10 +85,10 @@ def randomTest(caps):
         time.sleep(30)
         query_input.send_keys("Selenium Testing")
         query_input.send_keys(Keys.RETURN)
-        time.sleep(30)
+        time.sleep(20)
         selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
-        time.sleep(25)
         selenium_url.click()
+        time.sleep(20)
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
 
@@ -102,6 +102,15 @@ def randomTest(caps):
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
 
+
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
 
         driver.get("https://www.google.com/")
         query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
@@ -120,6 +129,7 @@ def randomTest(caps):
     except:
         sauce_client.jobs.update_job(driver.session_id, passed=False)  
         logging.info(f"Session {driver.session_id} failed")
+        session = driver.session_id
         driver.quit()
         return session
 lock = threading.Lock()
