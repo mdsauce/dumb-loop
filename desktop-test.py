@@ -14,8 +14,8 @@ import logging
 import datetime
 import time
 import os, sys
-THREADLIMIT = 5
-TESTS = 5
+THREADLIMIT = 90
+TESTS = 100
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
@@ -47,11 +47,11 @@ def randomTest(caps):
         return 1
     try: 
         driver.get("https://saucelabs.com")
-        wait = WebDriverWait(driver, 45)
+        wait = WebDriverWait(driver, 60)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "site-container")))
         if driver.title != "Cross Browser Testing, Selenium Testing, and Mobile Testing | Sauce Labs":
             sauce_client.jobs.update_job(driver.session_id, passed=False)
-            logging.info("Session {} failed".format(driver.session_id))
+            logging.error("Session {} failed".format(driver.session_id))
             session = driver.session_id
             driver.quit()
             return session
@@ -88,7 +88,7 @@ def randomTest(caps):
         time.sleep(20)
         selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
         selenium_url.click()
-        time.sleep(20)
+        time.sleep(10)
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
 
@@ -102,6 +102,15 @@ def randomTest(caps):
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
 
+
+        driver.get("https://www.google.com/")
+        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        query_input.send_keys("Selenium Testing")
+        query_input.send_keys(Keys.RETURN)
+        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
+        selenium_url.click()
+        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
+        textbook_link.click()
 
         driver.get("https://www.google.com/")
         query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
@@ -125,12 +134,12 @@ def randomTest(caps):
         sauce_client.jobs.update_job(driver.session_id, passed=True)  
         logging.info(f"Session {driver.session_id} passed")
         driver.quit()
+        return 0
 
     except:
         sauce_client.jobs.update_job(driver.session_id, passed=False)  
-        logging.info(f"Session {driver.session_id} failed")
+        logging.error(f"Session failed due to exception: {driver.session_id}: {sys.exc_info()}")
         session = driver.session_id
-        driver.quit()
         return session
 lock = threading.Lock()
 
@@ -147,15 +156,15 @@ def worker(q):
         try:
             status = randomTest(test)
         except:
-            logging.exception(f"Caught Exception: {sys.exc_info()}")
+            logging.exception(f"Caught Exception in session {status}: {sys.exc_info()}")
             with lock:
+                failedJobs+=1
                 if status != 0:
-                    failedJobs+=1
                     print(f"Thread-{threading.current_thread().name} says: I might be blocking the .join()")
                     q.task_done()
-                    logging.info(f"Thread-{threading.current_thread().name} has a failed job.")
+                    logging.info(f"Thread-{threading.current_thread().name} has a problem with a job.  May be an issue starting web driver.")
                     if status != 1:
-                        logging.info(f"Thread-{threading.current_thread().name} had failed session: {status}.")
+                        logging.error(f"Thread-{threading.current_thread().name} had failed session: {status}.")
         with lock:
             jobNumber+=1
             logging.info(f"Thread-{threading.current_thread().name} finished job number: {jobNumber}")
