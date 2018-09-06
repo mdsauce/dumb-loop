@@ -15,7 +15,7 @@ import datetime
 import time
 import os, sys
 THREADLIMIT = 4
-TESTS = 10
+TESTS = 100
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
@@ -85,14 +85,12 @@ def randomTest(caps):
         time.sleep(30)
         query_input.send_keys("Selenium Testing")
         query_input.send_keys(Keys.RETURN)
-        time.sleep(20)
+        time.sleep(15)
         selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
         selenium_url.click()
-        time.sleep(10)
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
         driver.execute_script("sauce:context=We are now stopping the sleeps here")
-
 
         driver.get("https://www.google.com/")
         query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
@@ -103,13 +101,9 @@ def randomTest(caps):
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
 
-
         driver.execute_script("sauce:context=Starting the long get command")
         driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
         driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
-        driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
-
-        
 
         # hooray! the test passed
         sauce_client.jobs.update_job(driver.session_id, passed=True)  
