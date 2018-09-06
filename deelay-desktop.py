@@ -14,7 +14,7 @@ import logging
 import datetime
 import time
 import os, sys
-THREADLIMIT = 2
+THREADLIMIT = 4
 TESTS = 10
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
@@ -88,10 +88,9 @@ def randomTest(caps):
         time.sleep(20)
         selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
         selenium_url.click()
-        time.sleep(20)
+        time.sleep(10)
         textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
         textbook_link.click()
-        time.sleep(30)
         driver.execute_script("sauce:context=We are now stopping the sleeps here")
 
 
@@ -105,32 +104,12 @@ def randomTest(caps):
         textbook_link.click()
 
 
-        driver.get("https://www.google.com/")
-        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
-        query_input.send_keys("Selenium Testing")
-        query_input.send_keys(Keys.RETURN)
-        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
-        selenium_url.click()
-        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
-        textbook_link.click()
+        driver.execute_script("sauce:context=Starting the long get command")
+        driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
+        driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
+        driver.get("http://deelay.enriquegh.com/30000/https://saucelabs.com")
 
-        driver.get("https://www.google.com/")
-        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
-        query_input.send_keys("Selenium Testing")
-        query_input.send_keys(Keys.RETURN)
-        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
-        selenium_url.click()
-        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
-        textbook_link.click()
-
-        driver.get("https://www.google.com/")
-        query_input = wait.until(EC.presence_of_element_located((By.NAME, "q")))
-        query_input.send_keys("Selenium Testing")
-        query_input.send_keys(Keys.RETURN)
-        selenium_url = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Introduction — Selenium Documentation")))
-        selenium_url.click()
-        textbook_link = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Test Design Considerations")))
-        textbook_link.click()
+        
 
         # hooray! the test passed
         sauce_client.jobs.update_job(driver.session_id, passed=True)  
