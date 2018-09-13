@@ -14,8 +14,8 @@ import logging
 import datetime
 import time
 import os, sys
-THREADLIMIT = 90
-TESTS = 100
+THREADLIMIT = 8
+TESTS = 50
 username = os.environ.get('SAUCE_USERNAME')
 access_key = os.environ.get('SAUCE_ACCESS_KEY')
 sauce_client = SauceClient(username, access_key)
@@ -24,13 +24,13 @@ logfileName = now.strftime('job-runner_%d-%m-%Y_%H-%M.log')
 logging.basicConfig(filename=logfileName,level=logging.INFO)
 
 def capsBuilder():
-    testName = "Simple Desktop Test"
-    platforms = ["Windows 10", "Windows 8.1", "Windows 7"]
-    browsers = ["chrome", "firefox"]
+    testName = "Win 10 Blocking Test"
+    platforms = ["Windows 10"]
+    browsers = ["MicrosoftEdge"]
     caps = {
         'platform': random.choice(platforms),
         'browserName': random.choice(browsers),
-        'version': "latest",
+        'version': "16.16299",
         'seleniumVersion': "3.8.1",
         'name': testName
     }
